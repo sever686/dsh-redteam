@@ -8,16 +8,21 @@
  *   redteam init [file]                        write the empty dataset template
  *   redteam merge <fragment.json> <file>       upsert rows into a dataset file
  *   redteam publish <file> <distDir>           copy (validating) a dataset into the dist root
+ *   redteam import-nmap <scan.xml> [file]      convert nmap XML into rows (merge when file given)
+ *   redteam import-nuclei <scan.jsonl> [file]  convert nuclei JSONL into activity rows
+ *   redteam import-burp <issues.json> [file]   convert Burp scanner issues into activity rows
  *
  * Zero runtime dependencies (node builtins only). The dataset template is the
  * package's own EMPTY_DATASET, so the schema never drifts from the console's
  * contracts. `merge` is the scanning-pipeline primitive: tool results land as
- * fragments and are upserted without clobbering existing rows.
+ * fragments and are upserted without clobbering existing rows. The `import-*`
+ * commands are the deterministic adapters for that pipeline: raw tool output
+ * becomes fragment rows without a model hand-translating field mappings.
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { EMPTY_DATASET, type RedteamDataset } from '../client/demo.ts'
+import { EMPTY_DATASET, type ActivityEvent, type RedteamDataset, type Severity, type TargetRow } from '../client/demo.ts'
 
 /** Dataset filename the console polls inside the dist root. */
 export const PUMP_FILENAME = 'redteam-data.json'
@@ -130,6 +135,184 @@ function readDataset(path: string): RedteamDataset | undefined {
   return value
 }
 
+/** Local-time `HH:mm` stamp for generated activity rows. */
+function localTime(): string {
+  return new Date().toTimeString().slice(0, 5)
+}
+
+/**
+ * Seed generated activity ids past a dataset's current maximum numeric id so
+ * imported events never collide with (and therefore overwrite) live rows.
+ */
+function seedActivityIds(events: ActivityEvent[], base: RedteamDataset | undefined): void {
+  let next = 1
+  if (base !== undefined) {
+    for (const row of base.activity) {
+      const n = Number(row.id)
+      if (!Number.isNaN(n) && n >= next) next = n + 1
+    }
+  }
+  for (const event of events) event.id = next++
+}
+
+/** Normalize an unknown severity string onto the five-level console axis. */
+function normalizeSeverity(value: unknown): Severity {
+  const text = String(value ?? '').toLowerCase()
+  if (text === 'critical' || text === 'high' || text === 'medium' || text === 'low') return text
+  return 'info'
+}
+
+/** Decode the XML entities nmap output uses inside attribute values. */
+function xmlAttr(value: string): string {
+  return value.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, '\'').replace(/&#(\d+);/g, (_, code) => String.fromCodePoint(Number(code)))
+}
+
+/**
+ * Convert `nmap -oX` output into fragment rows: one target per scanned host
+ * (open ports as a `proto/port` list, first osmatch as the OS hint) plus one
+ * info scan event per host. Host ids are `nmap:<ip>`, so re-importing the
+ * same scan upserts instead of duplicating. Regex-scoped to nmap's flat,
+ * stable host/port structure — no XML dependency is pulled in.
+ */
+export function parseNmapXml(text: string): Partial<RedteamDataset> {
+  const targets: TargetRow[] = []
+  const activity: ActivityEvent[] = []
+  const time = localTime()
+  for (const hostMatch of text.matchAll(/<host[\s>][\s\S]*?<\/host>/g)) {
+    const host = hostMatch[0]
+    const address = xmlAttr(host.match(/<address\s+addr="([^"]+)"\s+addrtype="(?:ipv4|ipv6)"/)?.[1] ?? '')
+    if (address === '') continue
+    const ports: string[] = []
+    for (const portMatch of host.matchAll(/<port\s+protocol="(\w+)"\s+portid="(\d+)"[^>]*>([\s\S]*?)<\/port>/g)) {
+      if (/<state\s+state="open"/.test(portMatch[3])) ports.push(`${portMatch[2]}/${portMatch[1]}`)
+    }
+    const os = xmlAttr(host.match(/<osmatch\s+name="([^"]+)"/)?.[1] ?? '')
+    const hostname = xmlAttr(host.match(/<hostname\s+type="(?:PTR|user)"\s+name="([^"]+)"/)?.[1] ?? host.match(/<hostname\s+name="([^"]+)"/)?.[1] ?? '')
+    targets.push({
+      id: `nmap:${address}`,
+      address,
+      kind: 'targets.kind.host',
+      os: os === '' ? null : os,
+      ports: ports.join(', '),
+      rights: 'targets.rights.none',
+      state: 'targets.state.recon',
+      inScope: true,
+      owner: hostname === '' ? 'nmap' : hostname,
+    })
+    activity.push({ id: 0, time, severity: 'info', action: 'activity.action.scan', target: address })
+  }
+  return { targets, activity }
+}
+
+/**
+ * Convert nuclei JSONL (`nuclei -j`) output into activity rows: one recon
+ * event per unique template/host hit, severity passed through nuclei's own
+ * five levels. Malformed lines are skipped rather than failing the file.
+ */
+export function parseNucleiJsonl(text: string): Partial<RedteamDataset> {
+  const activity: ActivityEvent[] = []
+  const seen = new Set<string>()
+  const time = localTime()
+  for (const line of text.split(/\r?\n/)) {
+    const trimmed = line.trim()
+    if (trimmed === '') continue
+    let entry: Record<string, unknown>
+    try {
+      entry = JSON.parse(trimmed) as Record<string, unknown>
+    } catch {
+      continue
+    }
+    const template = String(entry['template-id'] ?? entry.templateID ?? entry['template'] ?? '')
+    const host = String(entry.host ?? entry.url ?? '')
+    const key = `${template}|${host}`
+    if (template === '' || host === '' || seen.has(key)) continue
+    seen.add(key)
+    const info = (entry.info ?? {}) as Record<string, unknown>
+    activity.push({
+      id: 0,
+      time,
+      severity: normalizeSeverity(info.severity),
+      action: 'activity.action.recon',
+      target: host,
+    })
+  }
+  return { activity }
+}
+
+/**
+ * Convert Burp scanner issues (an array, or `{ issues: [...] }`) into
+ * activity rows: one breach event per unique name/target, mapping Burp's
+ * severity scale (informational → info). Field names are matched
+ * defensively so both the MCP tool output and Burp exports parse. Returns
+ * undefined when the file is not JSON — imports fail loudly, not silently.
+ */
+export function parseBurpIssues(text: string): Partial<RedteamDataset> | undefined {
+  let value: unknown
+  try {
+    value = JSON.parse(stripBom(text))
+  } catch {
+    return undefined
+  }
+  const raw = Array.isArray(value) ? value : ((value as { issues?: unknown[] })?.issues ?? [])
+  const activity: ActivityEvent[] = []
+  const seen = new Set<string>()
+  const time = localTime()
+  for (const item of raw) {
+    if (typeof item !== 'object' || item === null) continue
+    const record = item as Record<string, unknown>
+    const name = String(record.name ?? record.issueName ?? record.issue ?? record.title ?? '')
+    const target = String(record.host ?? record.origin ?? record.baseUrl ?? record.url ?? '')
+    const key = `${name}|${target}`
+    if (name === '' || target === '' || seen.has(key)) continue
+    seen.add(key)
+    activity.push({
+      id: 0,
+      time,
+      severity: normalizeSeverity(record.severity),
+      action: 'activity.action.breach',
+      target,
+    })
+  }
+  return { activity }
+}
+
+/**
+ * Shared `import-*` dispatch: parse the input file, then either merge into
+ * the given dataset file (in place, ids seeded past the current max) or
+ * print the fragment to stdout for redirection.
+ */
+function importToolOutput(
+  inputPath: string,
+  targetPath: string | undefined,
+  parse: (text: string) => Partial<RedteamDataset> | undefined,
+): number {
+  let text: string
+  try {
+    text = readFileSync(inputPath, 'utf8')
+  } catch {
+    process.stderr.write(`redteam: cannot read ${inputPath}\n`)
+    return 1
+  }
+  const fragment = parse(text)
+  if (fragment === undefined) {
+    process.stderr.write(`redteam: ${inputPath} is not a recognized ${'tool export'} (parse failed)\n`)
+    return 1
+  }
+  if (targetPath === undefined) {
+    seedActivityIds(fragment.activity ?? [], undefined)
+    process.stdout.write(`${JSON.stringify(fragment, null, 2)}\n`)
+    return 0
+  }
+  const base = readDataset(targetPath)
+  if (base === undefined) return 1
+  seedActivityIds(fragment.activity ?? [], base)
+  const merged = mergeDatasets(base, fragment)
+  writeFileSync(targetPath, `${JSON.stringify(merged, null, 2)}\n`)
+  const rows = Object.entries(fragment).map(([key, list]) => `${(list as unknown[]).length} ${key}`).join(', ')
+  process.stdout.write(`redteam: imported ${resolve(inputPath)} into ${resolve(targetPath)} (${rows})\n`)
+  return 0
+}
+
 function printHelp(): void {
   process.stdout.write(
     'redteam — companion CLI for the dsh red-team console data pump\n'
@@ -137,11 +320,15 @@ function printHelp(): void {
     + '  redteam init [file]                    write the empty dataset template (default: redteam-data.json)\n'
     + '  redteam merge <fragment.json> <file>   upsert rows from a fragment into a dataset file (in place)\n'
     + '  redteam publish <file> <distDir>       validate and copy a dataset into the frontend dist root\n'
+    + '  redteam import-nmap <scan.xml> [file]  nmap -oX output → targets + scan events (merge when file given, else print fragment)\n'
+    + '  redteam import-nuclei <scan> [file]    nuclei -j JSONL output → recon activity (merge when file given)\n'
+    + '  redteam import-burp <issues> [file]    Burp scanner issues JSON → breach activity (merge when file given)\n'
     + '  redteam help                           print this help\n'
     + '\n'
     + 'The console polls /redteam-data.json every 5s; publish lands the file\n'
     + 'where the frontend-static server exposes it. merge semantics: rows\n'
-    + 'upsert by id (coverage by tactic); activity re-orders newest-first.\n',
+    + 'upsert by id (coverage by tactic); activity re-orders newest-first.\n'
+    + 'import-* activity ids are seeded past the dataset\'s current max.\n',
   )
 }
 
@@ -218,6 +405,17 @@ export function runRedteam(args: readonly string[]): number {
         return 1
       }
       return publishDataset(source, distDir)
+    }
+    case 'import-nmap':
+    case 'import-nuclei':
+    case 'import-burp': {
+      const input = rest[0]
+      if (input === undefined) {
+        process.stderr.write(`redteam: usage: redteam ${command} <input> [dataset.json]\n`)
+        return 1
+      }
+      const parse = command === 'import-nmap' ? parseNmapXml : command === 'import-nuclei' ? parseNucleiJsonl : parseBurpIssues
+      return importToolOutput(input, rest[1], parse)
     }
     case 'help':
     case undefined:

@@ -7,7 +7,7 @@ import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { initDataset, mergeDatasets, mergeIntoDataset, publishDataset, PUMP_FILENAME, runRedteam } from '../src/bin/redteam.ts'
+import { initDataset, mergeDatasets, mergeIntoDataset, publishDataset, parseBurpIssues, parseNmapXml, parseNucleiJsonl, PUMP_FILENAME, runRedteam } from '../src/bin/redteam.ts'
 import type { RedteamDataset } from '../src/client/demo.ts'
 
 const TEMP_DIRS: string[] = []
@@ -177,6 +177,106 @@ describe('redteam merge', () => {
     writeFileSync(fragment, `\uFEFF${JSON.stringify({ targets: [] })}`)
     expect(mergeIntoDataset(fragment, target)).toBe(0)
     expect(JSON.parse(readFileSync(target, 'utf8')) as RedteamDataset).toEqual(baseDataset())
+  })
+})
+
+describe('redteam import-nmap', () => {
+  const scanXml = `<?xml version="1.0"?>
+<nmaprun>
+<host><status state="up"/>
+<address addr="10.0.0.5" addrtype="ipv4"/>
+<hostnames><hostname type="PTR" name="box.corp"/></hostnames>
+<ports><port protocol="tcp" portid="22"><state state="open"/></port>
+<port protocol="tcp" portid="23"><state state="closed"/></port></ports>
+<os><osmatch name="Linux 5.x" accuracy="98"/></os>
+</host>
+</nmaprun>`
+
+  it('converts hosts to target rows with only open ports plus one scan event each', () => {
+    const fragment = parseNmapXml(scanXml)
+    expect(fragment.targets).toHaveLength(1)
+    const target = fragment.targets?.[0]
+    expect(target?.id).toBe('nmap:10.0.0.5')
+    expect(target?.ports).toBe('22/tcp')
+    expect(target?.os).toBe('Linux 5.x')
+    expect(target?.owner).toBe('box.corp')
+    expect(target?.state).toBe('targets.state.recon')
+    expect(fragment.activity).toHaveLength(1)
+    expect(fragment.activity?.[0]?.action).toBe('activity.action.scan')
+    expect(fragment.activity?.[0]?.severity).toBe('info')
+  })
+
+  it('re-importing the same scan upserts rather than duplicates (stable ids)', () => {
+    const base = mergeDatasets(
+      { targets: [], jobs: [], sessions: [], credentials: [], activity: [], coverage: [] },
+      parseNmapXml(scanXml),
+    )
+    const again = mergeDatasets(base, parseNmapXml(scanXml))
+    expect(again.targets).toHaveLength(1)
+  })
+})
+
+describe('redteam import-nuclei', () => {
+  it('dedupes template/host pairs and skips malformed lines', () => {
+    const jsonl = [
+      '{"template-id":"t-1","info":{"severity":"critical"},"host":"https://a.example"}',
+      'not-json',
+      '{"template-id":"t-1","info":{"severity":"critical"},"host":"https://a.example"}',
+      '{"template-id":"t-2","info":{"severity":"informational"},"host":"https://b.example"}',
+      '{"template-id":"t-3","info":{"severity":"high"}}',
+    ].join('\n')
+    const fragment = parseNucleiJsonl(jsonl)
+    expect(fragment.activity).toHaveLength(2)
+    expect(fragment.activity?.[0]?.severity).toBe('critical')
+    expect(fragment.activity?.[1]?.severity).toBe('info')
+  })
+})
+
+describe('redteam import-burp', () => {
+  it('maps issue arrays defensively and normalizes severity', () => {
+    const issues = JSON.stringify([
+      { issueName: 'TLS cookie without secure flag', severity: 'low', host: 'https://x.example' },
+      { name: 'SQL injection', severity: 'High', origin: 'https://y.example' },
+      { name: 'SQL injection', severity: 'High', origin: 'https://y.example' },
+    ])
+    const fragment = parseBurpIssues(issues)
+    expect(fragment.activity).toHaveLength(2)
+    expect(fragment.activity?.[0]?.severity).toBe('low')
+    expect(fragment.activity?.[1]?.severity).toBe('high')
+    expect(fragment.activity?.[1]?.action).toBe('activity.action.breach')
+  })
+
+  it('accepts the { issues: [...] } envelope and fails loudly on non-JSON', () => {
+    const envelope = parseBurpIssues(JSON.stringify({ issues: [{ name: 'n', severity: 'critical', host: 'h' }] }))
+    expect(envelope?.activity).toHaveLength(1)
+    expect(parseBurpIssues('garbage')).toBeUndefined()
+  })
+})
+
+describe('redteam import dispatch', () => {
+  it('reports usage for import-nmap without arguments', () => {
+    expect(silenceConsole(() => runRedteam(['import-nmap']))).toBe(1)
+  })
+
+  it('imports a scan file into a dataset in place, seeding ids past the max', () => {
+    const dir = tempDir()
+    const scan = join(dir, 'scan.xml')
+    const data = join(dir, 'data.json')
+    writeFileSync(scan, '<nmaprun><host><address addr="10.0.0.9" addrtype="ipv4"/></host></nmaprun>')
+    writeFileSync(data, JSON.stringify({
+      targets: [], jobs: [], sessions: [], credentials: [],
+      activity: [{ id: 41, time: '09:00', severity: 'info', action: 'activity.action.scan', target: 'old' }],
+      coverage: [],
+    }))
+    const spy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true)
+    try {
+      expect(runRedteam(['import-nmap', scan, data])).toBe(0)
+    } finally {
+      spy.mockRestore()
+    }
+    const parsed = JSON.parse(readFileSync(data, 'utf8')) as RedteamDataset
+    expect(parsed.targets.map(t => t.id)).toEqual(['nmap:10.0.0.9'])
+    expect(parsed.activity.map(a => a.id)).toEqual([42, 41])
   })
 })
 
