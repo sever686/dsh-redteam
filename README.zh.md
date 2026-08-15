@@ -30,10 +30,15 @@ dsh plugin --profile web add @deepseek-ai/dsh-client-ui-redteam
 ```sh
 redteam init                          # redteam-data.json —— 空数据集模板
 # ... 扫描流水线填充文件（targets / jobs / sessions / credentials / activity / coverage）
+redteam merge <fragment.json> redteam-data.json   # 工具结果增量 upsert（按 id；coverage 按 tactic；activity 最新在前）
 redteam publish redteam-data.json <dsh检出版本>/apps/web/dist
 ```
 
 控制台在一个轮询周期（5 秒）内拾取文件。注意：`build:web` 会重写 dist 并抹掉已发布文件——前端构建后需重新 `publish`。载荷形状为 `RedteamDataset`（[src/client/demo.ts](src/client/demo.ts)）；行类型是生产契约，将来 `redteam` Host Remote 域按同形填充即可，分区零改动。
+
+### Agent 回路（harness 原生编排）
+
+在 dsh 里的自然回路是：人下命令 → agent 自主选工具（如 Kali/Burp MCP）执行 → 结果 merge/publish 进控制台。仓库附带的 [skill](skills/redteam-console-sync/SKILL.md) 固化了这套流程（范围确认、数据集 schema、merge 语义、发布路径）；复制到 `$DSH_HOME/skills/` 后即进入 agent 的 skill 目录，按需加载。
 
 ## 构建与测试（monorepo 上下文）
 

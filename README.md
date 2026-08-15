@@ -30,10 +30,15 @@ Installation prerequisites: the peer packages (`@deepseek-ai/dsh-client-runtime`
 ```sh
 redteam init                          # redteam-data.json — empty dataset template
 # ... your scanning pipeline fills the file (targets / jobs / sessions / credentials / activity / coverage)
+redteam merge <fragment.json> redteam-data.json   # upsert tool results (by id; coverage by tactic; activity newest-first)
 redteam publish redteam-data.json <dsh-checkout>/apps/web/dist
 ```
 
 The console picks the file up within one poll interval (5s). Note: `build:web` rewrites the dist and wipes the published file — re-run `publish` after frontend builds. The payload shape is `RedteamDataset` ([src/client/demo.ts](src/client/demo.ts)); row types are the production contracts a future `redteam` Host Remote domain fills without touching the sections.
+
+### Agent loop (harness-native orchestration)
+
+Inside dsh, the natural loop is: human command → the agent picks tools (e.g. Kali/Burp MCP) → results merge/publish into the console. The shipped [skill](skills/redteam-console-sync/SKILL.md) pins that procedure (scope check, dataset schema, merge semantics, publish path); copy it to `$DSH_HOME/skills/` and it appears in the agent's skill catalog for on-demand loading.
 
 ## Building and testing (monorepo context)
 
