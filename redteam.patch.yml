@@ -1,0 +1,14 @@
+# Bundle patch for external installs: inserts the ui-redteam roster row so the
+# console plugin loads in a profile that does not ship the monorepo web bundle.
+# In the monorepo, packages/bundle/web-app/cordis.patch.yml already owns this
+# row and this layer is simply not applied there.
+#
+# External enablement: `dsh plugin --profile web add @deepseek-ai/dsh-client-ui-redteam`
+# installs the package and reconciles this patch into the profile's
+# `dsh.profile.bundles` (see apps/cli/src/plugin.ts) — the next `dsh web` boot
+# applies the layer and mounts the console. Manual alternative: keep the row
+# out of bundles and pass this file to `dsh web --patch ./redteam.patch.yml`,
+# or append the row to `$DSH_HOME/cordis.patch.yml` once.
+- insert:
+    - id: ui-redteam
+      name: '@deepseek-ai/dsh-client-ui-redteam'

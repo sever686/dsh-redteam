@@ -1,0 +1,4 @@
+# Dependencies and build debris (build artifacts under lib/ are committed on purpose).
+node_modules/
+*.tsbuildinfo
+*.log
