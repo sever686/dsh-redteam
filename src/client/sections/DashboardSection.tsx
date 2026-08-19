@@ -61,7 +61,9 @@ export function DashboardSection({ t, useStore }: RedteamSectionProps) {
                     <span className={clsx(css.sevBadge, SEVERITY_CLASS[event.severity])}>
                       {t(SEVERITY_KEY[event.severity])}
                     </span>
-                    <span className={css.activityText}>{t(event.action, { target: event.target })}</span>
+                    <span className={css.activityText}>
+                      {event.description ?? t(event.action, { target: event.target })}
+                    </span>
                     <span className={css.mono}>{event.target}</span>
                   </li>
                 ))}

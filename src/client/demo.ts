@@ -85,13 +85,15 @@ export interface CredentialRow {
   updated: string
 }
 
-/** One live-activity event (description = key + interpolation params). */
+/** One live-activity event (description is data-driven; the action key only provides a fallback label). */
 export interface ActivityEvent {
   id: number
   time: string
   severity: Severity
   action: ActionKey
   target: string
+  /** Free-text description written by the tool pipeline; rendered verbatim when present. */
+  description?: string
 }
 
 /** One dashboard stat card. */

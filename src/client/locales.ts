@@ -34,10 +34,10 @@ export const zh = {
   'dash.scope.out': '范围外拦截 {count}',
   'dash.scope.hint': '所有目标输入均通过 Scope 引擎硬校验，范围外操作被拦截并留审计。',
 
-  'activity.action.scan': '对 {target} 发起端口扫描',
-  'activity.action.breach': '突破 {target}，获得 SYSTEM 权限',
-  'activity.action.cred': '从 {target} 采集到 2 组凭据',
-  'activity.action.recon': '{target} 发现新开放端口 445/tcp',
+  'activity.action.scan': '对 {target} 发起扫描',
+  'activity.action.breach': '确认 {target} 存在安全问题',
+  'activity.action.cred': '在 {target} 采集到凭据',
+  'activity.action.recon': '在 {target} 记录侦察发现',
   'activity.action.report': '生成 {target} 的利用报告',
 
   'sev.critical': '严重',
@@ -182,10 +182,10 @@ export const en = {
   'dash.scope.out': '{count} out-of-scope blocked',
   'dash.scope.hint': 'Every target input is hard-checked by the Scope engine; out-of-scope actions are blocked and audited.',
 
-  'activity.action.scan': 'Port scan started against {target}',
-  'activity.action.breach': 'Breached {target}, SYSTEM privileges obtained',
-  'activity.action.cred': 'Harvested 2 credential sets from {target}',
-  'activity.action.recon': 'New open port 445/tcp found on {target}',
+  'activity.action.scan': 'Scan started against {target}',
+  'activity.action.breach': 'Security issue confirmed on {target}',
+  'activity.action.cred': 'Credentials collected from {target}',
+  'activity.action.recon': 'Reconnaissance findings recorded on {target}',
   'activity.action.report': 'Exploitation report generated for {target}',
 
   'sev.critical': 'Critical',
