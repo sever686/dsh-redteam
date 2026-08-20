@@ -523,3 +523,70 @@
   opacity: 0.5;
   cursor: default;
 }
+/* ── Manual target add ───────────────────────────────────────────────── */
+
+.toolbarGroup {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.addButton {
+  padding: 6px 14px;
+  border: 1px solid var(--dsw-alias-state-business-primary);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--dsw-alias-state-business-primary);
+  font-family: var(--dsw-font-family);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.addButton:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.addButton:focus-visible {
+  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline-offset: 0;
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px 14px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.fieldLabel {
+  font-size: 12px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.fieldInput {
+  padding: 6px 10px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 6px;
+  background: var(--dsw-alias-bg-layer-1);
+  color: var(--dsw-alias-label-primary);
+  font-family: var(--dsw-font-family);
+  font-size: 13px;
+}
+
+.fieldInput:focus-visible {
+  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline-offset: 0;
+}
+
+.fieldCheck {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--dsw-alias-label-secondary);
+}

@@ -12,7 +12,7 @@
  * Remote-fetched rows and nothing downstream changes.
  */
 import { defineStore, type EngineStoreHandle } from '@deepseek-ai/dsh-client-runtime/client'
-import type { RedteamDataset } from './demo.ts'
+import type { RedteamDataset, TargetRow } from './demo.ts'
 import { EMPTY_DATASET } from './demo.ts'
 
 /** Built-in console section ids (nav keys). */
@@ -51,6 +51,7 @@ export type RedteamStoreActions = {
   selectSection: (draft: RedteamStoreState, section: RedteamSectionId) => void
   setDataset: (draft: RedteamStoreState, dataset: RedteamDataset) => void
   removeTarget: (draft: RedteamStoreState, id: string) => void
+  addTarget: (draft: RedteamStoreState, target: TargetRow) => void
 }
 
 /** Handle type consumers (components, props aliases) type against. */
@@ -88,6 +89,9 @@ export function createRedteamStore(): RedteamStoreHandle {
           credentials: d.dataset.credentials.filter(row => row.hosts !== address),
           activity: d.dataset.activity.filter(row => row.target !== address),
         }
+      },
+      addTarget: (d, target) => {
+        d.dataset = { ...d.dataset, targets: [...d.dataset.targets, target] }
       },
     },
   })

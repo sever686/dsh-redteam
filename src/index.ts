@@ -97,6 +97,10 @@ function respond(res: ServerResponse, status: number, value: object): void {
   res.end(JSON.stringify(value))
 }
 
+const TARGET_KINDS: ReadonlySet<string> = new Set(['targets.kind.host', 'targets.kind.domain', 'targets.kind.web', 'targets.kind.cloud'])
+const TARGET_STATES: ReadonlySet<string> = new Set(['targets.state.queued', 'targets.state.recon', 'targets.state.breached', 'targets.state.dropped'])
+const TARGET_RIGHTS: ReadonlySet<string> = new Set(['targets.rights.none', 'targets.rights.user', 'targets.rights.admin', 'targets.rights.system', 'targets.rights.domain-admin'])
+
 interface WebServerLike {
   register(route: {
     kind: 'exact'
@@ -150,4 +154,58 @@ export function apply(ctx: Context): void {
       }
     },
   }), 'ui-redteam: target-delete route')
+
+  ctx.effect(() => host.webServer.register({
+    kind: 'exact',
+    path: '/redteam-target-add',
+    handler: async (req, res) => {
+      if (req.method !== 'POST') {
+        respond(res, 405, { error: 'method-not-allowed' })
+        return
+      }
+      try {
+        const raw = await readBody(req)
+        const payload = JSON.parse(raw) as Record<string, unknown>
+        const address = typeof payload.address === 'string' ? payload.address.trim() : ''
+        if (address === '') {
+          respond(res, 400, { error: 'missing address' })
+          return
+        }
+        const loaded = await loadDataset()
+        if (loaded === undefined) {
+          respond(res, 404, { error: 'dataset file not found or invalid' })
+          return
+        }
+        if (loaded.dataset.targets.some(row => row.address.toLowerCase() === address.toLowerCase())) {
+          respond(res, 409, { error: 'duplicate address' })
+          return
+        }
+        let id = `manual-${address}`
+        let suffix = 2
+        while (loaded.dataset.targets.some(row => row.id === id)) id = `manual-${address}-${suffix++}`
+        const target = {
+          id,
+          address,
+          kind: typeof payload.kind === 'string' && TARGET_KINDS.has(payload.kind) ? payload.kind : 'targets.kind.host',
+          os: typeof payload.os === 'string' && payload.os.trim() !== '' ? payload.os.trim() : null,
+          ports: typeof payload.ports === 'string' ? payload.ports.trim() : '',
+          rights: typeof payload.rights === 'string' && TARGET_RIGHTS.has(payload.rights) ? payload.rights : 'targets.rights.none',
+          state: typeof payload.state === 'string' && TARGET_STATES.has(payload.state) ? payload.state : 'targets.state.queued',
+          inScope: payload.inScope !== false,
+          owner: typeof payload.owner === 'string' && payload.owner.trim() !== '' ? payload.owner.trim() : 'manual',
+        }
+        const next: DatasetLike = { ...loaded.dataset, targets: [...loaded.dataset.targets, target] }
+        const files: string[] = []
+        if (loaded.sourcePath !== undefined) {
+          await writeFile(loaded.sourcePath, JSON.stringify(next, null, 2))
+          files.push('source')
+        }
+        await writeFile(loaded.distPath, JSON.stringify(next, null, 2))
+        files.push('dist')
+        respond(res, 200, { ok: true, target, files })
+      } catch (error) {
+        respond(res, 500, { error: String(error) })
+      }
+    },
+  }), 'ui-redteam: target-add route')
 }
