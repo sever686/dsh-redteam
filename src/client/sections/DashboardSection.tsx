@@ -1,11 +1,12 @@
 /**
- * Dashboard section: stat cards, the live-activity feed, and the scope
- * compliance panel. All numbers are static demo fixtures (demo.ts) — the
- * production wiring points (host telemetry, session projection, scope engine)
- * are documented in README.md.
+ * Dashboard section: stat cards derived from the pumped dataset, the
+ * live-activity feed, and the scope compliance panel. The cards read the
+ * same store every section reads (the data-pump product of redteam-data.json),
+ * so the numbers follow the data; only "runtime" stays a placeholder until
+ * host telemetry lands.
  */
 import clsx from 'clsx'
-import { STATS, type Severity } from '../demo.ts'
+import type { StatCard, Severity } from '../demo.ts'
 import type { RedteamSectionProps } from '../contract/slots.ts'
 import type { RedteamKey } from '../locales.ts'
 import css from './sections.module.css'
@@ -35,13 +36,28 @@ const SEVERITY_CLASS: Record<Severity, string | undefined> = {
  */
 export function DashboardSection({ t, useStore }: RedteamSectionProps) {
   const targets = useStore(s => s.dataset.targets)
+  const jobs = useStore(s => s.dataset.jobs)
+  const sessions = useStore(s => s.dataset.sessions)
+  const credentials = useStore(s => s.dataset.credentials)
   const activity = useStore(s => s.dataset.activity)
+
+  // Dataset-backed stat cards: the keys keep the demo structure, the values
+  // follow the pumped dataset member-by-member. Only "runtime" remains a
+  // placeholder until host telemetry lands.
+  const stats: readonly StatCard[] = [
+    { key: 'dash.stats.tasks', value: String(jobs.filter(job => job.state === 'jobs.state.queued' || job.state === 'jobs.state.running').length) },
+    { key: 'dash.stats.sessions', value: String(sessions.length) },
+    { key: 'dash.stats.hosts', value: String(targets.filter(row => row.state === 'targets.state.breached').length) },
+    { key: 'dash.stats.findings', value: String(activity.filter(event => event.action === 'activity.action.breach' || event.action === 'activity.action.cred').length) },
+    { key: 'dash.stats.credentials', value: String(credentials.length) },
+    { key: 'dash.stats.runtime', value: '—' },
+  ]
   const inScope = targets.filter(row => row.inScope).length
   const outOfScope = targets.length - inScope
   return (
     <div className={css.dashboard}>
       <div className={css.statGrid}>
-        {STATS.map(stat => (
+        {stats.map(stat => (
           <div key={stat.key} className={css.statCard}>
             <div className={css.statValue}>{stat.value}</div>
             <div className={css.statLabel}>{t(stat.key)}</div>
