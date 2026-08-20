@@ -50,6 +50,7 @@ export type RedteamStoreActions = {
   close: (draft: RedteamStoreState) => void
   selectSection: (draft: RedteamStoreState, section: RedteamSectionId) => void
   setDataset: (draft: RedteamStoreState, dataset: RedteamDataset) => void
+  removeTarget: (draft: RedteamStoreState, id: string) => void
 }
 
 /** Handle type consumers (components, props aliases) type against. */
@@ -74,6 +75,19 @@ export function createRedteamStore(): RedteamStoreHandle {
       },
       setDataset: (d, dataset) => {
         d.dataset = dataset
+      },
+      removeTarget: (d, id) => {
+        const target = d.dataset.targets.find(row => row.id === id)
+        if (target === undefined) return
+        const address = target.address
+        d.dataset = {
+          ...d.dataset,
+          targets: d.dataset.targets.filter(row => row.id !== id),
+          jobs: d.dataset.jobs.filter(row => row.target !== address),
+          sessions: d.dataset.sessions.filter(row => row.host !== address),
+          credentials: d.dataset.credentials.filter(row => row.hosts !== address),
+          activity: d.dataset.activity.filter(row => row.target !== address),
+        }
       },
     },
   })
