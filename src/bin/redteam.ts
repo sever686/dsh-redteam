@@ -184,7 +184,7 @@ export function parseNmapXml(text: string): Partial<RedteamDataset> {
     if (address === '') continue
     const ports: string[] = []
     for (const portMatch of host.matchAll(/<port\s+protocol="(\w+)"\s+portid="(\d+)"[^>]*>([\s\S]*?)<\/port>/g)) {
-      if (/<state\s+state="open"/.test(portMatch[3])) ports.push(`${portMatch[2]}/${portMatch[1]}`)
+      if (/<state\s+state="open"/.test(portMatch[3] ?? '' )) ports.push(`${portMatch[2] ?? ''}/${portMatch[1] ?? ''}`)
     }
     const os = xmlAttr(host.match(/<osmatch\s+name="([^"]+)"/)?.[1] ?? '')
     const hostname = xmlAttr(host.match(/<hostname\s+type="(?:PTR|user)"\s+name="([^"]+)"/)?.[1] ?? host.match(/<hostname\s+name="([^"]+)"/)?.[1] ?? '')
@@ -299,13 +299,13 @@ function importToolOutput(
     return 1
   }
   if (targetPath === undefined) {
-    seedActivityIds(fragment.activity ?? [], undefined)
+    seedActivityIds([...(fragment.activity ?? [])], undefined)
     process.stdout.write(`${JSON.stringify(fragment, null, 2)}\n`)
     return 0
   }
   const base = readDataset(targetPath)
   if (base === undefined) return 1
-  seedActivityIds(fragment.activity ?? [], base)
+  seedActivityIds([...(fragment.activity ?? [])], base)
   const merged = mergeDatasets(base, fragment)
   writeFileSync(targetPath, `${JSON.stringify(merged, null, 2)}\n`)
   const rows = Object.entries(fragment).map(([key, list]) => `${(list as unknown[]).length} ${key}`).join(', ')
