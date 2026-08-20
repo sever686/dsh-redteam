@@ -89,7 +89,9 @@ describe('ui-redteam browser plugin', () => {
 })
 
 describe('ui-redteam node half', () => {
-  it('the node apply is an inert loader seat', () => {
-    expect(() => { nodeApply() }).not.toThrow()
+  it('the node apply mounts its host routes', () => {
+    const fakeCtx = new Context() as unknown as { webServer: { register: (route: unknown) => () => void } }
+    fakeCtx.webServer = { register: () => () => {} }
+    expect(() => { nodeApply(fakeCtx as unknown as Parameters<typeof nodeApply>[0]) }).not.toThrow()
   })
 })

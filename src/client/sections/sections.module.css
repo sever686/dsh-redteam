@@ -590,3 +590,43 @@
   font-size: 13px;
   color: var(--dsw-alias-label-secondary);
 }
+
+/* ── Dashboard high-risk findings panel ────────────────────────────────── */
+
+.findingsHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+
+.findingsHeader h2 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.findingsHint {
+  font-size: 11px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.findingsMore {
+  margin: 8px 0 0;
+  font-size: 12px;
+  text-align: center;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+/* ── Out-of-scope row treatment (Targets) ─────────────────────────────── */
+
+.outOfScopeRow {
+  opacity: 0.65;
+  background: var(--dsw-alias-interactive-bg-hover-danger);
+}
+
+.outOfScopeRow td:first-child {
+  border-left: 3px solid var(--dsw-alias-state-error-primary);
+}

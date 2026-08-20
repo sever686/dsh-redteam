@@ -240,10 +240,12 @@ describe('redteam import-burp', () => {
       { name: 'SQL injection', severity: 'High', origin: 'https://y.example' },
     ])
     const fragment = parseBurpIssues(issues)
-    expect(fragment.activity).toHaveLength(2)
-    expect(fragment.activity?.[0]?.severity).toBe('low')
-    expect(fragment.activity?.[1]?.severity).toBe('high')
-    expect(fragment.activity?.[1]?.action).toBe('activity.action.breach')
+    expect(fragment).toBeDefined()
+    const activity = fragment!.activity!
+    expect(activity).toHaveLength(2)
+    expect(activity[0]?.severity).toBe('low')
+    expect(activity[1]?.severity).toBe('high')
+    expect(activity[1]?.action).toBe('activity.action.breach')
   })
 
   it('accepts the { issues: [...] } envelope and fails loudly on non-JSON', () => {

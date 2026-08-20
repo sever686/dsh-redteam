@@ -74,7 +74,9 @@ export function TargetsSection({ t, useStore, actions }: RedteamSectionProps) {
     ? targets
     : targets.filter(row => row.address.toLowerCase().includes(needle))
 
-  const patchForm = (part: Partial<AddForm>): void => setForm(current => ({ ...current, ...part }))
+  const patchForm = (part: Partial<AddForm>): void => {
+    setForm(current => ({ ...current, ...part }))
+  }
   const openAdd = (): void => {
     setForm(EMPTY_FORM)
     setAddError(null)
@@ -180,7 +182,7 @@ export function TargetsSection({ t, useStore, actions }: RedteamSectionProps) {
             </thead>
             <tbody>
               {rows.map(row => (
-                <tr key={row.id}>
+                <tr key={row.id} className={!row.inScope ? css.outOfScopeRow : undefined} title={!row.inScope ? `${t('targets.scope.out')} · ${row.address}` : undefined}>
                   <td className={css.mono}>{row.address}</td>
                   <td>{t(row.kind)}</td>
                   <td>{row.os ?? '—'}</td>

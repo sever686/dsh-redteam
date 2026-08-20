@@ -1,9 +1,9 @@
+import type { Context } from '@deepseek-ai/cordis';
+export declare const name = "client-ui-redteam";
+export declare const inject: string[];
 /**
- * Red-team operations console plugin, node half. Pure UI plugin: the empty
- * apply exists so the plugin appears in the host cordis.yml / Loader; the
- * browser half ships via exports["./client"], discovered through the
- * package.json dsh.client declaration.
+ * Register the deletion route on the composed webServer.
+ * @param ctx - host context carrying the webServer service.
  */
-/** Host plugin body — no host-side behavior for this surface plugin. */
-export declare function apply(): void;
+export declare function apply(ctx: Context): void;
 //# sourceMappingURL=index.d.ts.map

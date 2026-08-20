@@ -148,7 +148,7 @@ function seedActivityIds(events: ActivityEvent[], base: RedteamDataset | undefin
   let next = 1
   if (base !== undefined) {
     for (const row of base.activity) {
-      const n = Number(row.id)
+      const n = row.id
       if (!Number.isNaN(n) && n >= next) next = n + 1
     }
   }
@@ -157,9 +157,22 @@ function seedActivityIds(events: ActivityEvent[], base: RedteamDataset | undefin
 
 /** Normalize an unknown severity string onto the five-level console axis. */
 function normalizeSeverity(value: unknown): Severity {
-  const text = String(value ?? '').toLowerCase()
+  const text = (typeof value === 'string' ? value : '').toLowerCase()
   if (text === 'critical' || text === 'high' || text === 'medium' || text === 'low') return text
   return 'info'
+}
+
+/**
+ * Pick the first string-valued key from an unknown record, skipping any value
+ * that is not a string. Defensive against untyped JSON where adversarial or
+ * non-standard payloads could otherwise surface as "[object Object]".
+ */
+function pickString(record: Record<string, unknown>, keys: readonly string[]): string {
+  for (const key of keys) {
+    const value = record[key]
+    if (typeof value === 'string') return value
+  }
+  return ''
 }
 
 /** Decode the XML entities nmap output uses inside attribute values. */
@@ -222,10 +235,10 @@ export function parseNucleiJsonl(text: string): Partial<RedteamDataset> {
     } catch {
       continue
     }
-    const template = String(entry['template-id'] ?? entry.templateID ?? entry['template'] ?? '')
-    const host = String(entry.host ?? entry.url ?? '')
-    const key = `${template}|${host}`
-    if (template === '' || host === '' || seen.has(key)) continue
+    const templateId = pickString(entry, ['template-id', 'templateID', 'template', 'id'])
+    const host = pickString(entry, ['host', 'url'])
+    const key = `${templateId}|${host}`
+    if (templateId === '' || host === '' || seen.has(key)) continue
     seen.add(key)
     const info = (entry.info ?? {}) as Record<string, unknown>
     activity.push({
@@ -253,15 +266,15 @@ export function parseBurpIssues(text: string): Partial<RedteamDataset> | undefin
   } catch {
     return undefined
   }
-  const raw = Array.isArray(value) ? value : ((value as { issues?: unknown[] })?.issues ?? [])
+  const raw = Array.isArray(value) ? value : ((value as { issues?: unknown[] }).issues ?? [])
   const activity: ActivityEvent[] = []
   const seen = new Set<string>()
   const time = localTime()
   for (const item of raw) {
     if (typeof item !== 'object' || item === null) continue
     const record = item as Record<string, unknown>
-    const name = String(record.name ?? record.issueName ?? record.issue ?? record.title ?? '')
-    const target = String(record.host ?? record.origin ?? record.baseUrl ?? record.url ?? '')
+    const name = pickString(record, ['name', 'issueName', 'issue', 'title'])
+    const target = pickString(record, ['host', 'origin', 'baseUrl', 'url'])
     const key = `${name}|${target}`
     if (name === '' || target === '' || seen.has(key)) continue
     seen.add(key)
@@ -295,7 +308,7 @@ function importToolOutput(
   }
   const fragment = parse(text)
   if (fragment === undefined) {
-    process.stderr.write(`redteam: ${inputPath} is not a recognized ${'tool export'} (parse failed)\n`)
+    process.stderr.write(`redteam: ${inputPath} is not a recognized tool export (parse failed)\n`)
     return 1
   }
   if (targetPath === undefined) {

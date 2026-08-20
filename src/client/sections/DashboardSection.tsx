@@ -1,10 +1,12 @@
 /**
  * Dashboard section: stat cards derived from the pumped dataset, the
+ * high-risk findings panel (focused view of breach/cred events), the
  * live-activity feed, and the scope compliance panel. The cards read the
  * same store every section reads (the data-pump product of redteam-data.json),
  * so the numbers follow the data; only "runtime" stays a placeholder until
  * host telemetry lands.
  */
+import { useMemo } from 'react'
 import clsx from 'clsx'
 import type { StatCard, Severity } from '../demo.ts'
 import type { RedteamSectionProps } from '../contract/slots.ts'
@@ -28,6 +30,18 @@ const SEVERITY_CLASS: Record<Severity, string | undefined> = {
   low: css.sevLow,
   info: css.sevInfo,
 }
+
+/** Sort order: lower rank = more severe. Matches the stat card "待处理发现"口径. */
+const SEVERITY_RANK: Record<Severity, number> = {
+  critical: 0,
+  high: 1,
+  medium: 2,
+  low: 3,
+  info: 4,
+}
+
+/** Cap on the findings panel; the rest is summarized as "+N more". */
+const FINDINGS_VISIBLE_MAX = 10
 
 /**
  * Render the dashboard section.
@@ -54,6 +68,21 @@ export function DashboardSection({ t, useStore }: RedteamSectionProps) {
   ]
   const inScope = targets.filter(row => row.inScope).length
   const outOfScope = targets.length - inScope
+
+  // High-risk findings: derived view of breach/cred events, sorted by
+  // severity tier then by id desc (newest first). Reuses the dataset as the
+  // single source — no parallel data structure, no new keys.
+  const findings = useMemo(() => {
+    const filtered = activity.filter(event =>
+      event.action === 'activity.action.breach' || event.action === 'activity.action.cred',
+    )
+    return [...filtered].sort((left, right) => {
+      const rank = SEVERITY_RANK[left.severity] - SEVERITY_RANK[right.severity]
+      if (rank !== 0) return rank
+      return right.id - left.id
+    })
+  }, [activity])
+
   return (
     <div className={css.dashboard}>
       <div className={css.statGrid}>
@@ -64,6 +93,41 @@ export function DashboardSection({ t, useStore }: RedteamSectionProps) {
           </div>
         ))}
       </div>
+      <section className={css.panel} aria-label={t('dash.findings.title')}>
+        <div className={css.findingsHeader}>
+          <h2>{t('dash.findings.title')}</h2>
+          {findings.length > 0 && (
+            <span className={css.findingsHint}>
+              {String(findings.length)} · breach / cred
+            </span>
+          )}
+        </div>
+        {findings.length === 0
+          ? <p className={css.empty}>{t('dash.findings.empty')}</p>
+          : (
+            <>
+              <ul className={css.activity}>
+                {findings.slice(0, FINDINGS_VISIBLE_MAX).map(event => (
+                  <li key={event.id} className={css.activityRow}>
+                    <span className={css.mono}>{event.time}</span>
+                    <span className={clsx(css.sevBadge, SEVERITY_CLASS[event.severity])}>
+                      {t(SEVERITY_KEY[event.severity])}
+                    </span>
+                    <span className={css.activityText}>
+                      {event.description ?? t(event.action, { target: event.target })}
+                    </span>
+                    <span className={css.mono}>{event.target}</span>
+                  </li>
+                ))}
+              </ul>
+              {findings.length > FINDINGS_VISIBLE_MAX && (
+                <p className={css.findingsMore}>
+                  {t('dash.findings.more', { count: findings.length - FINDINGS_VISIBLE_MAX })}
+                </p>
+              )}
+            </>
+          )}
+      </section>
       <div className={css.dashColumns}>
         <section className={css.panel} aria-label={t('dash.activity.title')}>
           <h2 className={css.panelTitle}>{t('dash.activity.title')}</h2>
