@@ -8,15 +8,16 @@
  * @module @deepseek-ai/dsh-client-ui-redteam
  */
 import { readFile, writeFile } from 'node:fs/promises'
+import { join } from 'node:path'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Context } from '@deepseek-ai/cordis'
 
 export const name = 'client-ui-redteam'
 export const inject = ['webServer']
 
-/** Deployment-local file paths, env-overridable. */
-const SOURCE_FILE = process.env.REDTEAM_DATA_FILE ?? 'C:\\Users\\jie\\redteam-data.json'
-const DIST_FILE = process.env.REDTEAM_DATA_DIST ?? 'D:\\27656\\Documents\\deepseek-harness\\apps\\web\\dist\\redteam-data.json'
+/** Deployment-local file paths, env-overridable. Defaults stay machine-neutral: both files live under the process cwd. */
+const SOURCE_FILE = process.env.REDTEAM_DATA_FILE ?? join(process.cwd(), 'redteam-data.json')
+const DIST_FILE = process.env.REDTEAM_DATA_DIST ?? join(process.cwd(), 'dist', 'redteam-data.json')
 
 interface TargetLike { readonly id: string; readonly address: string }
 interface DatasetLike {

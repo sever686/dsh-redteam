@@ -33,16 +33,16 @@ D:\27656\Documents\deepseek-harness\apps\web\dist\redteam-data.json
 
 ## 标准流程
 
-1. **范围确认**：目标在授权范围内（当前：192.168.98.0/24、Kali 本机 127.0.0.1/192.168.98.131）。范围外拒绝。
+1. **范围确认**：目标在当前授权范围内（范围以本次任务下发的授权文件为准）。范围外拒绝。
 2. **执行工具**：Kali MCP 的 `nmap_scan`/`gobuster_scan`/`sqlmap_scan` 等，或 `execute_command` 任意工具。
 3. **解析 + 增量合并**（保留既有数据，勿全量覆盖）：
    ```powershell
-   node D:\27656\Documents\deepseek-harness\packages\client\ui-redteam\lib\bin\redteam.js merge <片段.json> C:\Users\jie\redteam-data.json
+   redteam merge <片段.json> redteam-data.json
    ```
    `merge` 语义：targets/jobs/sessions/credentials 按 `id` upsert；activity 按 `id` upsert 后按 id 倒序；coverage 按 `tactic` upsert。片段可只含部分数组（缺省键保留正本原值）。
 4. **发布**：
    ```powershell
-   node D:\27656\Documents\deepseek-harness\packages\client\ui-redteam\lib\bin\redteam.js publish C:\Users\jie\redteam-data.json D:\27656\Documents\deepseek-harness\apps\web\dist
+   redteam publish redteam-data.json <前端 dist 目录>
    ```
 5. **反馈用户**：报告发现摘要 + 说明控制台已同步（≤5s）。
 6. **例外**：`pnpm run build:web` 会抹掉 dist 中的发布文件，之后重新 publish。
