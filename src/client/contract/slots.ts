@@ -12,9 +12,9 @@
  * declares nothing it does not own.
  */
 import type {
-  ComposedProps, HostObservable, PropsLocale, PropsRuntime, PropsStore,
-  SnapshotSelectorHook,
+  ComposedProps, HostObservable, PropsLocale, PropsRuntime,
 } from '@deepseek-ai/dsh-client-ui-slots'
+import type { PropsStore, SnapshotSelectorHook } from '@deepseek-ai/dsh-client-store'
 import type { RedteamStoreHandle } from '../store.ts'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {

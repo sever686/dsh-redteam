@@ -8,9 +8,11 @@
  * third-party section would, and the nav rail projects their entry labels
  * through the locale-following thunk pattern.
  */
-import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
+import type { Context as ClientContext } from '@deepseek-ai/cordis'
 // Type-only: pulls ctx.locale into this program.
 import type {} from '@deepseek-ai/dsh-client-locale/client'
+// Type-only: pulls the ctx.slots service merge (the SlotRegistry face).
+import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 // Type-only: the shell.overlay declaration (ui-layout owns the frame layer).
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
 // Type-only: the sidebar.footer.action declaration (ui-sidebar owns the foot).

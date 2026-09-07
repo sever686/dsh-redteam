@@ -11,4 +11,4 @@
 # or append the row to `$DSH_HOME/cordis.patch.yml` once.
 - insert:
     - id: ui-redteam
-      name: '@deepseek-ai/dsh-client-ui-redteam'
+      name: '@dsh-external/dsh-redteam'

@@ -172,10 +172,18 @@ export const zh = {
   'reports.tactic.c2': '命令与控制',
   'reports.tactic.exfil': '数据渗出',
   'reports.tactic.impact': '影响',
-} satisfies Record<string, string>
+} satisfies Record<RedteamKey, string>
 
-/** The redteam namespace key union. */
-export type RedteamKey = keyof typeof zh
+/**
+ * The redteam namespace key union, sourced from the host-neutral dataset
+ * contract (src/dataset.ts) — re-exported here so client code keeps the
+ * historical import path. The zh dictionary above is typed `satisfies
+ * Record<RedteamKey, string>`: a missing key is a compile error here, and a
+ * stale key in the union fails the same way.
+ */
+import type { RedteamKey } from '../dataset.ts'
+
+export type { RedteamKey }
 
 /** English dictionary, checked complete against the zh key set. */
 export const en = {

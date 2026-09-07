@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { initDataset, mergeDatasets, mergeIntoDataset, publishDataset, parseBurpIssues, parseNmapXml, parseNucleiJsonl, PUMP_FILENAME, runRedteam } from '../src/bin/redteam.ts'
-import type { RedteamDataset } from '../src/client/demo.ts'
+import type { RedteamDataset } from '../src/dataset.ts'
 
 const TEMP_DIRS: string[] = []
 afterEach(() => {

@@ -22,7 +22,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { EMPTY_DATASET, type ActivityEvent, type RedteamDataset, type Severity, type TargetRow } from '../client/demo.ts'
+import { EMPTY_DATASET, type ActivityEvent, type RedteamDataset, type Severity, type TargetRow } from '../dataset.ts'
 
 /** Dataset filename the console polls inside the dist root. */
 export const PUMP_FILENAME = 'redteam-data.json'

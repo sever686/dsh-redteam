@@ -11,7 +11,7 @@
  * replaces the file channel — then the pump writes the same action with
  * Remote-fetched rows and nothing downstream changes.
  */
-import { defineStore, type EngineStoreHandle } from '@deepseek-ai/dsh-client-runtime/client'
+import { defineStore, type EngineStoreHandle } from '@deepseek-ai/dsh-client-store'
 import type { RedteamDataset, TargetRow } from './demo.ts'
 import { EMPTY_DATASET } from './demo.ts'
 

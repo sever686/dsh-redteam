@@ -1,14 +1,10 @@
 {
-  "name": "@deepseek-ai/dsh-client-ui-redteam",
+  "name": "@dsh-external/dsh-redteam",
   "description": "Red-team operations console: a sidebar-foot trigger plus a full-screen shell.overlay console (dashboard, targets, jobs, sessions, credentials, reports) with a plugin-extensible redteam.section slot",
-  "version": "0.1.0-rc.5",
-  "publishConfig": {
-    "access": "public"
-  },
+  "version": "0.1.0",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/deepseek-ai/deepseek-harness.git",
-    "directory": "packages/client/ui-redteam"
+    "url": "git+https://github.com/sever686/dsh-redteam.git"
   },
   "type": "module",
   "main": "lib/index.js",
@@ -36,8 +32,9 @@
   "dsh": {
     "client": {
       "inject": [
-        "@deepseek-ai/dsh-client-runtime",
+        "@deepseek-ai/dsh-client-store",
         "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-renderer",
         "@deepseek-ai/dsh-client-ui-layout",
         "@deepseek-ai/dsh-client-ui-sidebar"
       ],
@@ -48,37 +45,28 @@
     }
   },
   "scripts": {
-    "bundle": "tsdown",
-    "watch": "tsdown --watch"
+    "build": "node scripts/build.mjs",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "license": "MIT",
   "dependencies": {
     "clsx": "^2.0.0"
   },
   "peerDependencies": {
-    "@deepseek-ai/dsh-client-locale": "workspace:^",
-    "@deepseek-ai/dsh-client-runtime": "workspace:^",
-    "@deepseek-ai/dsh-client-ui-layout": "workspace:^",
-    "@deepseek-ai/dsh-client-ui-primitives": "workspace:^",
-    "@deepseek-ai/dsh-client-ui-sidebar": "workspace:^",
-    "@deepseek-ai/dsh-client-ui-slots": "workspace:^",
-    "@deepseek-ai/dsh-invariants": "workspace:^",
-    "@deepseek-ai/cordis": "workspace:^",
+    "@deepseek-ai/cordis": "^4.0.1",
+    "@deepseek-ai/dsh-client-locale": "^0.1.3-alpha.1",
+    "@deepseek-ai/dsh-client-store": "^0.1.3-alpha.1",
+    "@deepseek-ai/dsh-client-ui-layout": "^0.1.3-alpha.1",
+    "@deepseek-ai/dsh-client-ui-primitives": "^0.1.3-alpha.1",
+    "@deepseek-ai/dsh-client-ui-sidebar": "^0.1.3-alpha.1",
+    "@deepseek-ai/dsh-client-ui-slots": "^0.1.3-alpha.1",
+    "@deepseek-ai/dsh-invariants": "^0.1.3-alpha.1",
     "react": "^18.2.0"
   },
   "devDependencies": {
-    "@deepseek-ai/dsh-client-locale": "workspace:^",
-    "@deepseek-ai/dsh-client-runtime": "workspace:^",
-    "@deepseek-ai/dsh-client-test-runtime": "workspace:^",
-    "@deepseek-ai/dsh-client-ui-layout": "workspace:^",
-    "@deepseek-ai/dsh-client-ui-primitives": "workspace:^",
-    "@deepseek-ai/dsh-client-ui-sidebar": "workspace:^",
-    "@deepseek-ai/dsh-client-ui-slots": "workspace:^",
-    "@deepseek-ai/dsh-invariants": "workspace:^",
     "@testing-library/react": "^16.1.0",
     "@types/node": "^22.0.0",
     "@types/react": "~18.3.1",
-    "@deepseek-ai/cordis": "workspace:^",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   },
